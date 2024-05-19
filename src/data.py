@@ -64,3 +64,11 @@ def generate_data(
     y = pd.qcut(y, n_classes, labels=False)
 
     return X, y
+
+
+def discretize_dataset(X, bins=10):
+    X_discr = np.copy(X)
+    for i in range(X.shape[1]):
+        X_discr[:, i] = pd.cut(X[:, i], bins=bins, labels=False)
+
+    return X_discr

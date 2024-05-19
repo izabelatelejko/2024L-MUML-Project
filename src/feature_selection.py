@@ -1,7 +1,10 @@
 """Module for feature selection methods."""
 
+import numpy as np
 import statsmodels.api as sm
 from sklearn.metrics import mutual_info_score as MI
+from sklearn.linear_model import LogisticRegression
+from sklearn.feature_selection import SequentialFeatureSelector
 
 from src.utils import CMI, interaction_gain
 
@@ -103,3 +106,28 @@ def wrapper_criterion(X, y, criterion="bic"):
             break
     selected.sort()
     return selected
+
+
+def l1_selection(X, y):
+    """L1 regularization for feature selection."""
+    sfs_model = LogisticRegression(max_iter=1000, penalty="l1", solver="liblinear").fit(
+        X, y
+    )
+    sfs_forward = SequentialFeatureSelector(
+        sfs_model, n_features_to_select="auto", tol=0.001, direction="forward"
+    ).fit(X, y)
+    selected = list(np.argwhere(sfs_forward.get_support() * 1 > 0).T[0])
+    selected.sort()
+    return selected
+
+
+def find_relevant_features(X, y):
+    relevant_features = {}
+    relevant_features["BIC"] = wrapper_criterion(X, y)
+    relevant_features["CMIM"] = CMIM(X, y)
+    relevant_features["JMIM"] = JMIM(X, y)
+    relevant_features["IGFS"] = IGFS(X, y)
+    relevant_features["L1"] = l1_selection(X, y)
+
+    print("Calculations completed!")
+    return relevant_features
