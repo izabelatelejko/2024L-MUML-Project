@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+from scipy.io import loadmat
 
 
 def generate_data(
@@ -72,3 +73,78 @@ def discretize_dataset(X, bins=10):
         X_discr[:, i] = pd.cut(X[:, i], bins=bins, labels=False)
 
     return X_discr
+
+
+def load_preprocesss_data():
+    data = {}
+
+    # Divorce dataset, source https://www.kaggle.com/datasets/rabieelkharoua/split-or-stay-divorce-predictor-dataset
+    divorce = pd.read_csv("data/divorce.csv", sep=";")
+
+    data["divorce"] = {}
+    data["divorce"]["X_orig"] = divorce.drop("Class", axis=1).to_numpy()
+    data["divorce"]["X_discr"] = divorce.drop("Class", axis=1).to_numpy()
+    data["divorce"]["y"] = divorce["Class"].to_numpy()
+
+    # AIDS classification dataset, source: https://www.kaggle.com/datasets/aadarshvelu/aids-virus-infection-prediction
+    aids = pd.read_csv("data/aids.csv")
+    X_aids = aids.drop("infected", axis=1).to_numpy()
+
+    data["aids"] = {}
+    data["aids"]["X_orig"] = X_aids
+    data["aids"]["X_discr"] = discretize_dataset(X_aids)
+    data["aids"]["y"] = aids["infected"].to_numpy()
+
+    # LOL Diamond FF15 dataset, source: https://www.kaggle.com/datasets/jakejoeanderson/league-of-legends-diamond-matches-ff15
+    lol = pd.read_csv("data/lol.csv")
+    X_lol = lol.drop(["match_id", "blue_Win"], axis=1).to_numpy()
+
+    data["lol"] = {}
+    data["lol"]["X_orig"] = X_lol
+    data["lol"]["X_discr"] = discretize_dataset(X_lol)
+    data["lol"]["y"] = lol["blue_Win"].to_numpy()
+
+    # Cancer dataset, source: https://www.kaggle.com/datasets/erdemtaha/cancer-data
+    cancer = pd.read_csv("data/cancer.csv")
+    cancer.loc[cancer["diagnosis"] == "M", "diagnosis"] = 0
+    cancer.loc[cancer["diagnosis"] == "B", "diagnosis"] = 1
+    X_cancer = cancer.drop(["id", "diagnosis", "Unnamed: 32"], axis=1).to_numpy()
+
+    data["cancer"] = {}
+    data["cancer"]["X_orig"] = X_cancer
+    data["cancer"]["X_discr"] = discretize_dataset(X_cancer)
+    data["cancer"]["y"] = cancer["diagnosis"].to_numpy().astype(int)
+
+    # Gait classification, source: https://archive.ics.uci.edu/dataset/604/gait+classification
+    gait = loadmat("data/gait.mat")
+
+    X_gait = gait["X"]
+    y_gait = gait["Y"].T[0]
+
+    inds_to_del = []
+    for i in range(X_gait.shape[0]):
+        if np.sum(np.isnan(X_gait[i, :])) != 0:
+            inds_to_del.append(i)
+    X_gait = np.delete(X_gait, (inds_to_del), axis=0)
+    y_gait = np.delete(y_gait, (inds_to_del), axis=0)
+
+    data["gait"] = {}
+    data["gait"]["X_orig"] = X_gait
+    data["gait"]["X_discr"] = discretize_dataset(X_gait)
+    data["gait"]["y"] = pd.cut(y_gait, 3, labels=False)
+
+    # Generated data
+
+    for dataset_variant in range(3):
+        X_gen, y_gen = generate_data(
+            betas=[0, 1, 1, 1, 1, 1],
+            dataset_variant=dataset_variant,
+            n_classes=2,
+        )
+        gen_dataset_type = "generated_" + str(dataset_variant)
+        data[gen_dataset_type] = {}
+        data[gen_dataset_type]["X_orig"] = X_gen
+        data[gen_dataset_type]["X_discr"] = discretize_dataset(X_gen)
+        data[gen_dataset_type]["y"] = y_gen
+
+    return data
