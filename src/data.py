@@ -50,7 +50,7 @@ def generate_data(
         X = np.concatenate([X1, X2], axis=1)
     # relevant features with noise
     elif dataset_variant == 1:
-        X3 = X1 + np.random.normal(0, 0.1, (n, n_rel))
+        X3 = X1 + np.random.normal(0, 0.5, (n, n_rel))
         X = np.concatenate([X1, X3], axis=1)
     # second order interactions of relevant features
     else:
@@ -75,7 +75,7 @@ def discretize_dataset(X, bins=10):
     return X_discr
 
 
-def load_preprocesss_data():
+def load_preprocess_data():
     data = {}
 
     # Divorce dataset, source https://www.kaggle.com/datasets/rabieelkharoua/split-or-stay-divorce-predictor-dataset
@@ -85,6 +85,7 @@ def load_preprocesss_data():
     data["divorce"]["X_orig"] = divorce.drop("Class", axis=1).to_numpy()
     data["divorce"]["X_discr"] = divorce.drop("Class", axis=1).to_numpy()
     data["divorce"]["y"] = divorce["Class"].to_numpy()
+    data["divorce"]["n_features"] = data["divorce"]["X_orig"].shape[1]
 
     # AIDS classification dataset, source: https://www.kaggle.com/datasets/aadarshvelu/aids-virus-infection-prediction
     aids = pd.read_csv("data/aids.csv")
@@ -94,6 +95,7 @@ def load_preprocesss_data():
     data["aids"]["X_orig"] = X_aids
     data["aids"]["X_discr"] = discretize_dataset(X_aids)
     data["aids"]["y"] = aids["infected"].to_numpy()
+    data["aids"]["n_features"] = X_aids.shape[1]
 
     # LOL Diamond FF15 dataset, source: https://www.kaggle.com/datasets/jakejoeanderson/league-of-legends-diamond-matches-ff15
     lol = pd.read_csv("data/lol.csv")
@@ -103,6 +105,7 @@ def load_preprocesss_data():
     data["lol"]["X_orig"] = X_lol
     data["lol"]["X_discr"] = discretize_dataset(X_lol)
     data["lol"]["y"] = lol["blue_Win"].to_numpy()
+    data["lol"]["n_features"] = X_lol.shape[1]
 
     # Cancer dataset, source: https://www.kaggle.com/datasets/erdemtaha/cancer-data
     cancer = pd.read_csv("data/cancer.csv")
@@ -114,6 +117,7 @@ def load_preprocesss_data():
     data["cancer"]["X_orig"] = X_cancer
     data["cancer"]["X_discr"] = discretize_dataset(X_cancer)
     data["cancer"]["y"] = cancer["diagnosis"].to_numpy().astype(int)
+    data["cancer"]["n_features"] = X_cancer.shape[1]
 
     # Gait classification, source: https://archive.ics.uci.edu/dataset/604/gait+classification
     gait = loadmat("data/gait.mat")
@@ -132,11 +136,13 @@ def load_preprocesss_data():
     data["gait"]["X_orig"] = X_gait
     data["gait"]["X_discr"] = discretize_dataset(X_gait)
     data["gait"]["y"] = pd.cut(y_gait, 3, labels=False)
+    data["gait"]["n_features"] = X_gait.shape[1]
 
     # Generated data
 
     for dataset_variant in range(3):
         X_gen, y_gen = generate_data(
+            n_rel=5,
             betas=[0, 1, 1, 1, 1, 1],
             dataset_variant=dataset_variant,
             n_classes=2,
@@ -146,5 +152,22 @@ def load_preprocesss_data():
         data[gen_dataset_type]["X_orig"] = X_gen
         data[gen_dataset_type]["X_discr"] = discretize_dataset(X_gen)
         data[gen_dataset_type]["y"] = y_gen
+        data[gen_dataset_type]["n_features"] = X_gen.shape[1]
+        data[gen_dataset_type]["n_relevant"] = 5
+
+    X_irrelevant = np.random.choice(2, (1000, 10))
+    X_relevant = np.random.choice(2, (1000, 3))
+    X = np.concatenate((X_relevant, X_irrelevant), axis=1)
+
+    Y = X_relevant[:, 0]
+    for i in range(1, X_relevant.shape[1]):
+        Y = 1 * np.logical_xor(Y, X_relevant[:, i])
+
+    data["xor"] = {}
+    data["xor"]["X_orig"] = X
+    data["xor"]["X_discr"] = discretize_dataset(X)
+    data["xor"]["y"] = Y
+    data["xor"]["n_features"] = X.shape[1]
+    data["xor"]["n_relevant"] = X_relevant.shape[1]
 
     return data

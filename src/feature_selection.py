@@ -1,5 +1,6 @@
 """Module for feature selection methods."""
 
+import pandas as pd
 import numpy as np
 import statsmodels.api as sm
 from sklearn.metrics import mutual_info_score as MI
@@ -9,12 +10,53 @@ from tqdm import tqdm
 from sklearn.model_selection import cross_val_score
 
 from src.utils import CMI, interaction_gain
+from typing import Literal, Union
 
 
-def CMIM(X, y, n_features=5):
+def NMI(X, Y):
+    """Compute normalized mutual information between two variables."""
+    return MI(X, Y) / min(entropy(X), entropy(Y))
+
+
+def MI_battiti(X, S, Y):
+    """
+    Compute the mutual information between the selected features and the target variable
+    """
+    if S.shape[1] == 0:
+        print(MI(X, Y))
+        return MI(X, Y)
+    beta = 1 / S.shape[1]
+    sum_mi = 0
+    for i in range(S.shape[1]):
+        sum_mi += NMI(X, S[:, i])
+    print(NMI(X, Y) - beta * sum_mi)
+    return NMI(X, Y) - beta * sum_mi
+
+
+def MI_kwak(X, S, Y):
+    """
+    Compute the mutual information between the selected features and the target variable
+    """
+    if S.shape[1] == 0:
+        return MI(X, Y)
+    beta = 1 / S.shape[1]
+    sum_mi = 0
+    for i in range(S.shape[1]):
+        sum_mi += MI(Y, S[:, i]) * MI(X, S[:, i]) / entropy(S[:, i])
+    return MI(X, Y) - beta * sum_mi
+
+
+def entropy(X):
+    """Compute entropy of a given variable."""
+    _, counts = np.unique(X, return_counts=True)
+    prob = counts / len(X)
+    return -np.sum(prob * np.log2(prob))
+
+
+def CMIM(X, y, n_features="auto"):
     """Conditional Mutual Information Maximization."""
     selected = []
-    for _ in range(n_features):
+    for _ in range(X.shape[1] if n_features == "auto" else n_features):
         max_cmim_value = float("-inf")
         for i in range(X.shape[1]):
             if i in selected:
@@ -28,12 +70,22 @@ def CMIM(X, y, n_features=5):
             if J - max_value > max_cmim_value:
                 max_cmim_value = J - max_value
                 max_idx = i
+
+        # stopping rule
+        if (
+            n_features == "auto"
+            and len(selected) > 0
+            and MI_battiti(X[:, max_idx], X[:, np.array(selected).astype(int)], y)
+            < 0.03
+        ):
+            print("Stopping rule triggered")
+            break
         selected.append(max_idx)
     selected.sort()
     return selected
 
 
-def JMIM(X, y, n_features=5):
+def JMIM(X, y, n_features="auto"):
     """Joint Mutual Information Maximization."""
     max_mi_value = float("-inf")
     for i in range(X.shape[1]):
@@ -43,7 +95,7 @@ def JMIM(X, y, n_features=5):
             max_mi_value = curr_mi
     selected = [first_idx]
 
-    for _ in range(n_features - 1):
+    for _ in range(X.shape[1] - 1 if n_features == "auto" else n_features - 1):
         max_jmim_value = float("-inf")
         for i in range(X.shape[1]):
             if i in selected:
@@ -56,15 +108,24 @@ def JMIM(X, y, n_features=5):
             if min_value > max_jmim_value:
                 max_jmim_value = min_value
                 max_idx = i
+
+        # stopping rule
+        if (
+            n_features == "auto"
+            and MI_battiti(X[:, max_idx], X[:, np.array(selected).astype(int)], y)
+            < 0.03
+        ):
+            print("Stopping rule triggered")
+            break
         selected.append(max_idx)
     selected.sort()
     return selected
 
 
-def IGFS(X, y, n_features=5):
+def IGFS(X, y, n_features: Union[int, Literal["auto"]] = "auto"):
     """Information Gain Feature Selection."""
     selected = []
-    for _ in range(n_features):
+    for _ in range(X.shape[1] if n_features == "auto" else n_features):
         max_igfs_value = float("-inf")
         for i in range(X.shape[1]):
             if i in selected:
@@ -77,6 +138,16 @@ def IGFS(X, y, n_features=5):
             if J + inter_gain_sum > max_igfs_value:
                 max_igfs_value = J + inter_gain_sum
                 max_idx = i
+
+        # stopping rule
+        if (
+            n_features == "auto"
+            and len(selected) > 0
+            and MI_battiti(X[:, max_idx], X[:, np.array(selected).astype(int)], y)
+            < 0.03
+        ):
+            print("Stopping rule triggered")
+            break
         selected.append(max_idx)
     selected.sort()
     return selected
@@ -106,7 +177,6 @@ def wrapper_criterion(X, y, criterion="bic"):
             best_score = min_score
         else:
             break
-    selected.sort()
     return selected
 
 
@@ -151,7 +221,7 @@ def perform_feature_selection_on_all_datasets(data):
     return relevant_features_all_datasets
 
 
-def evaluate_feature_selection(data, relevant_features, estimator, cv=5):
+def evaluate_feature_selection(data, relevant_features, estimator, cv=5, **kwargs):
     """Evaluate feature selection methods using cross-validation."""
     accuracy_scores = {}
     for dataset, _ in relevant_features.items():
@@ -161,7 +231,7 @@ def evaluate_feature_selection(data, relevant_features, estimator, cv=5):
         ):
             X = data[dataset]["X_orig"][:, val]
             y = data[dataset]["y"]
-            clf = estimator()
+            clf = estimator(**kwargs)
             accuracy_scores[dataset][method] = cross_val_score(clf, X, y, cv=3)
 
         clf = estimator()
@@ -169,3 +239,22 @@ def evaluate_feature_selection(data, relevant_features, estimator, cv=5):
             clf, data[dataset]["X_orig"], data[dataset]["y"], cv=cv
         )
     return accuracy_scores
+
+
+def process_generated_data_results(data, relevant_features_all_datasets):
+    """Process results for generated data."""
+    features_comparison = pd.DataFrame()
+    for dataset, _ in data.items():
+        for method, val in relevant_features_all_datasets[dataset].items():
+            row = {
+                "dataset": dataset,
+                "method": method,
+                "n_selected": len(val),
+                "n_relevant": data[dataset].get("n_relevant", None),
+                "n_features": data[dataset]["n_features"],
+            }
+            features_comparison = pd.concat([features_comparison, pd.DataFrame([row])])
+    features_comparison["selected_ratio"] = round(
+        features_comparison["n_selected"] / features_comparison["n_features"], 2
+    )
+    return features_comparison.reset_index(drop=True)
