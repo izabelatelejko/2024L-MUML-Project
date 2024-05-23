@@ -42,7 +42,7 @@ def plot_results(df):
     plt.show()
 
 
-def plot_multiple_plots(accuracy_scores, model_name):
+def plot_all_datasets(accuracy_scores, model_name):
     """Plot boxplots showing accuracy for different feature selection methods on multiple datasets."""
     datasets = [key for key, _ in accuracy_scores.items()]
 
@@ -116,7 +116,7 @@ def plot_n_out_ratio_single_dataset(df, ax):
 
 def plot_n_out_ratio(results):
     """Plot comparison of outliers ratio for each method and dataset with true outlies ratio."""
-    fig, ax = plt.subplots(3, 3, figsize=(12, 12))
+    fig, ax = plt.subplots(3, 3, figsize=(12, 12), sharey=True)
     for i, dataset_name in enumerate(np.unique(results["dataset"])):
         plot_n_out_ratio_single_dataset(
             results[results["dataset"] == dataset_name], ax[i // 3, i % 3]
