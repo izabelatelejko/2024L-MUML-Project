@@ -92,10 +92,10 @@ def plot_all_datasets(accuracy_scores, model_name):
     plt.show()
 
 
-def plot_n_out_ratio_single_dataset(df, ax):
+def plot_n_features_ratio_single_dataset(df, ax):
     """Plot outliers ratio for each method for single dataset."""
     true_relevant = df["n_relevant"].reset_index(drop=True)[0]
-    ax.bar(
+    bars = ax.bar(
         df["method"],
         df["selected_ratio"],
         color=(0.65625, 0.09375, 0.65625, 0.1),
@@ -113,12 +113,24 @@ def plot_n_out_ratio_single_dataset(df, ax):
         label.set_fontsize(9)
         label.set_ha("right")
 
+    for bar, n_selected in zip(bars, df["n_selected"]):
+        height = bar.get_height() + 0.01
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            height,
+            f"{n_selected}",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+            color=(0.65625, 0.09375, 0.65625),
+        )
 
-def plot_n_out_ratio(results):
+
+def plot_n_features_ratio(results):
     """Plot comparison of outliers ratio for each method and dataset with true outlies ratio."""
     fig, ax = plt.subplots(3, 3, figsize=(12, 12), sharey=True)
     for i, dataset_name in enumerate(np.unique(results["dataset"])):
-        plot_n_out_ratio_single_dataset(
+        plot_n_features_ratio_single_dataset(
             results[results["dataset"] == dataset_name], ax[i // 3, i % 3]
         )
         ax[i // 3, i % 3].set_title(dataset_name)
@@ -126,6 +138,8 @@ def plot_n_out_ratio(results):
         "Comparison of selected features ratio for each method with true relevant ratio (dashed line) for synthetic data",
         fontsize=16,
     )
+    fig.supxlabel("Method")
+    fig.supylabel("Selected features ratio")
     fig.tight_layout()
     fig.subplots_adjust(top=0.94)
     plt.show()
