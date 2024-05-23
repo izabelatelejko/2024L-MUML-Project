@@ -1,10 +1,10 @@
 """Module for running experiments on the model."""
 
 import pandas as pd
-from tqdm import tqdm
 from sklearn.model_selection import cross_val_score
+from tqdm import tqdm
 
-from src.feature_selection import wrapper_criterion, CMIM, JMIM, IGFS, l1_selection
+from src.feature_selection import CMIM, IGFS, JMIM, l1_selection, wrapper_criterion
 
 
 def find_relevant_features(X, y):

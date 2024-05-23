@@ -1,14 +1,14 @@
 """Module for feature selection methods."""
 
+from typing import Literal, Union
+
 import numpy as np
 import statsmodels.api as sm
-from sklearn.metrics import mutual_info_score as MI
-from sklearn.linear_model import LogisticRegression
 from sklearn.feature_selection import SequentialFeatureSelector
-
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import mutual_info_score as MI
 
 from src.utils import CMI, MI_battiti, interaction_gain
-from typing import Literal, Union
 
 
 def check_for_stopping_rule(ind_cand, X, Y, S):
