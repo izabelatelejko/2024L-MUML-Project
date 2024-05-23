@@ -99,7 +99,7 @@ def load_preprocess_data():
 
     # LOL Diamond FF15 dataset, source: https://www.kaggle.com/datasets/jakejoeanderson/league-of-legends-diamond-matches-ff15
     lol = pd.read_csv("data/lol.csv")
-    X_lol = lol.drop(["match_id", "blue_Win"], axis=1).to_numpy()
+    X_lol = lol.drop(["match_id", "blue_Win", "red_Win"], axis=1).to_numpy()
 
     data["lol"] = {}
     data["lol"]["X_orig"] = X_lol
